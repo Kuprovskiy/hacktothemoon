@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.hacktothemoon.web.rest.UserJWTControllerIT
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.381 s - in com.hacktothemoon.web.rest.UserJWTControllerIT

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.hacktothemoon.config.WebConfigurerTest
+-------------------------------------------------------------------------------
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.122 s - in com.hacktothemoon.config.WebConfigurerTest

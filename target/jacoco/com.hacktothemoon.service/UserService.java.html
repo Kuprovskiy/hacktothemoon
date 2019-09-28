@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Hacktothemoon</a> &gt; <a href="index.source.html" class="el_package">com.hacktothemoon.service</a> &gt; <span class="el_source">UserService.java</span></div><h1>UserService.java</h1><pre class="source lang-java linenums">package com.hacktothemoon.service;
+
+import com.hacktothemoon.config.Constants;
+import com.hacktothemoon.domain.Authority;
+import com.hacktothemoon.domain.User;
+import com.hacktothemoon.repository.AuthorityRepository;
+import com.hacktothemoon.repository.UserRepository;
+import com.hacktothemoon.security.AuthoritiesConstants;
+import com.hacktothemoon.security.SecurityUtils;
+import com.hacktothemoon.service.dto.UserDTO;
+import com.hacktothemoon.service.util.RandomUtil;
+import com.hacktothemoon.web.rest.errors.*;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Service class for managing users.
+ */
+@Service
+@Transactional
+public class UserService {
+
+<span class="fc" id="L35">    private final Logger log = LoggerFactory.getLogger(UserService.class);</span>
+
+    private final UserRepository userRepository;
+
+    private final PasswordEncoder passwordEncoder;
+
+    private final AuthorityRepository authorityRepository;
+
+<span class="fc" id="L43">    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthorityRepository authorityRepository) {</span>
+<span class="fc" id="L44">        this.userRepository = userRepository;</span>
+<span class="fc" id="L45">        this.passwordEncoder = passwordEncoder;</span>
+<span class="fc" id="L46">        this.authorityRepository = authorityRepository;</span>
+<span class="fc" id="L47">    }</span>
+
+    public Optional&lt;User&gt; activateRegistration(String key) {
+<span class="fc" id="L50">        log.debug(&quot;Activating user for activation key {}&quot;, key);</span>
+<span class="fc" id="L51">        return userRepository.findOneByActivationKey(key)</span>
+<span class="fc" id="L52">            .map(user -&gt; {</span>
+                // activate given user for the registration key.
+<span class="fc" id="L54">                user.setActivated(true);</span>
+<span class="fc" id="L55">                user.setActivationKey(null);</span>
+<span class="fc" id="L56">                log.debug(&quot;Activated user: {}&quot;, user);</span>
+<span class="fc" id="L57">                return user;</span>
+            });
+    }
+
+    public Optional&lt;User&gt; completePasswordReset(String newPassword, String key) {
+<span class="fc" id="L62">        log.debug(&quot;Reset user password for reset key {}&quot;, key);</span>
+<span class="fc" id="L63">        return userRepository.findOneByResetKey(key)</span>
+<span class="fc" id="L64">            .filter(user -&gt; user.getResetDate().isAfter(Instant.now().minusSeconds(86400)))</span>
+<span class="fc" id="L65">            .map(user -&gt; {</span>
+<span class="fc" id="L66">                user.setPassword(passwordEncoder.encode(newPassword));</span>
+<span class="fc" id="L67">                user.setResetKey(null);</span>
+<span class="fc" id="L68">                user.setResetDate(null);</span>
+<span class="fc" id="L69">                return user;</span>
+            });
+    }
+
+    public Optional&lt;User&gt; requestPasswordReset(String mail) {
+<span class="fc" id="L74">        return userRepository.findOneByEmailIgnoreCase(mail)</span>
+<span class="fc" id="L75">            .filter(User::getActivated)</span>
+<span class="fc" id="L76">            .map(user -&gt; {</span>
+<span class="fc" id="L77">                user.setResetKey(RandomUtil.generateResetKey());</span>
+<span class="fc" id="L78">                user.setResetDate(Instant.now());</span>
+<span class="fc" id="L79">                return user;</span>
+            });
+    }
+
+    public User registerUser(UserDTO userDTO, String password) {
+<span class="fc" id="L84">        userRepository.findOneByLogin(userDTO.getLogin().toLowerCase()).ifPresent(existingUser -&gt; {</span>
+<span class="fc" id="L85">            boolean removed = removeNonActivatedUser(existingUser);</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">            if (!removed) {</span>
+<span class="fc" id="L87">                throw new LoginAlreadyUsedException();</span>
+            }
+<span class="fc" id="L89">        });</span>
+<span class="fc" id="L90">        userRepository.findOneByEmailIgnoreCase(userDTO.getEmail()).ifPresent(existingUser -&gt; {</span>
+<span class="fc" id="L91">            boolean removed = removeNonActivatedUser(existingUser);</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">            if (!removed) {</span>
+<span class="fc" id="L93">                throw new EmailAlreadyUsedException();</span>
+            }
+<span class="fc" id="L95">        });</span>
+<span class="fc" id="L96">        User newUser = new User();</span>
+<span class="fc" id="L97">        String encryptedPassword = passwordEncoder.encode(password);</span>
+<span class="fc" id="L98">        newUser.setLogin(userDTO.getLogin().toLowerCase());</span>
+        // new user gets initially a generated password
+<span class="fc" id="L100">        newUser.setPassword(encryptedPassword);</span>
+<span class="fc" id="L101">        newUser.setFirstName(userDTO.getFirstName());</span>
+<span class="fc" id="L102">        newUser.setLastName(userDTO.getLastName());</span>
+<span class="fc" id="L103">        newUser.setEmail(userDTO.getEmail().toLowerCase());</span>
+<span class="fc" id="L104">        newUser.setImageUrl(userDTO.getImageUrl());</span>
+<span class="fc" id="L105">        newUser.setLangKey(userDTO.getLangKey());</span>
+        // new user is not active
+<span class="fc" id="L107">        newUser.setActivated(false);</span>
+        // new user gets registration key
+<span class="fc" id="L109">        newUser.setActivationKey(RandomUtil.generateActivationKey());</span>
+<span class="fc" id="L110">        Set&lt;Authority&gt; authorities = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L111">        authorityRepository.findById(AuthoritiesConstants.USER).ifPresent(authorities::add);</span>
+<span class="fc" id="L112">        newUser.setAuthorities(authorities);</span>
+<span class="fc" id="L113">        userRepository.save(newUser);</span>
+<span class="fc" id="L114">        log.debug(&quot;Created Information for User: {}&quot;, newUser);</span>
+<span class="fc" id="L115">        return newUser;</span>
+    }
+
+    private boolean removeNonActivatedUser(User existingUser){
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        if (existingUser.getActivated()) {</span>
+<span class="fc" id="L120">             return false;</span>
+        }
+<span class="fc" id="L122">        userRepository.delete(existingUser);</span>
+<span class="fc" id="L123">        userRepository.flush();</span>
+<span class="fc" id="L124">        return true;</span>
+    }
+
+    public User createUser(UserDTO userDTO) {
+<span class="fc" id="L128">        User user = new User();</span>
+<span class="fc" id="L129">        user.setLogin(userDTO.getLogin().toLowerCase());</span>
+<span class="fc" id="L130">        user.setFirstName(userDTO.getFirstName());</span>
+<span class="fc" id="L131">        user.setLastName(userDTO.getLastName());</span>
+<span class="fc" id="L132">        user.setEmail(userDTO.getEmail().toLowerCase());</span>
+<span class="fc" id="L133">        user.setImageUrl(userDTO.getImageUrl());</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">        if (userDTO.getLangKey() == null) {</span>
+<span class="nc" id="L135">            user.setLangKey(Constants.DEFAULT_LANGUAGE); // default language</span>
+        } else {
+<span class="fc" id="L137">            user.setLangKey(userDTO.getLangKey());</span>
+        }
+<span class="fc" id="L139">        String encryptedPassword = passwordEncoder.encode(RandomUtil.generatePassword());</span>
+<span class="fc" id="L140">        user.setPassword(encryptedPassword);</span>
+<span class="fc" id="L141">        user.setResetKey(RandomUtil.generateResetKey());</span>
+<span class="fc" id="L142">        user.setResetDate(Instant.now());</span>
+<span class="fc" id="L143">        user.setActivated(true);</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        if (userDTO.getAuthorities() != null) {</span>
+<span class="fc" id="L145">            Set&lt;Authority&gt; authorities = userDTO.getAuthorities().stream()</span>
+<span class="fc" id="L146">                .map(authorityRepository::findById)</span>
+<span class="fc" id="L147">                .filter(Optional::isPresent)</span>
+<span class="fc" id="L148">                .map(Optional::get)</span>
+<span class="fc" id="L149">                .collect(Collectors.toSet());</span>
+<span class="fc" id="L150">            user.setAuthorities(authorities);</span>
+        }
+<span class="fc" id="L152">        userRepository.save(user);</span>
+<span class="fc" id="L153">        log.debug(&quot;Created Information for User: {}&quot;, user);</span>
+<span class="fc" id="L154">        return user;</span>
+    }
+
+    /**
+     * Update basic information (first name, last name, email, language) for the current user.
+     *
+     * @param firstName first name of user.
+     * @param lastName  last name of user.
+     * @param email     email id of user.
+     * @param langKey   language key.
+     * @param imageUrl  image URL of user.
+     */
+    public void updateUser(String firstName, String lastName, String email, String langKey, String imageUrl) {
+<span class="fc" id="L167">        SecurityUtils.getCurrentUserLogin()</span>
+<span class="fc" id="L168">            .flatMap(userRepository::findOneByLogin)</span>
+<span class="fc" id="L169">            .ifPresent(user -&gt; {</span>
+<span class="fc" id="L170">                user.setFirstName(firstName);</span>
+<span class="fc" id="L171">                user.setLastName(lastName);</span>
+<span class="fc" id="L172">                user.setEmail(email.toLowerCase());</span>
+<span class="fc" id="L173">                user.setLangKey(langKey);</span>
+<span class="fc" id="L174">                user.setImageUrl(imageUrl);</span>
+<span class="fc" id="L175">                log.debug(&quot;Changed Information for User: {}&quot;, user);</span>
+<span class="fc" id="L176">            });</span>
+<span class="fc" id="L177">    }</span>
+
+    /**
+     * Update all information for a specific user, and return the modified user.
+     *
+     * @param userDTO user to update.
+     * @return updated user.
+     */
+    public Optional&lt;UserDTO&gt; updateUser(UserDTO userDTO) {
+<span class="fc" id="L186">        return Optional.of(userRepository</span>
+<span class="fc" id="L187">            .findById(userDTO.getId()))</span>
+<span class="fc" id="L188">            .filter(Optional::isPresent)</span>
+<span class="fc" id="L189">            .map(Optional::get)</span>
+<span class="fc" id="L190">            .map(user -&gt; {</span>
+<span class="fc" id="L191">                user.setLogin(userDTO.getLogin().toLowerCase());</span>
+<span class="fc" id="L192">                user.setFirstName(userDTO.getFirstName());</span>
+<span class="fc" id="L193">                user.setLastName(userDTO.getLastName());</span>
+<span class="fc" id="L194">                user.setEmail(userDTO.getEmail().toLowerCase());</span>
+<span class="fc" id="L195">                user.setImageUrl(userDTO.getImageUrl());</span>
+<span class="fc" id="L196">                user.setActivated(userDTO.isActivated());</span>
+<span class="fc" id="L197">                user.setLangKey(userDTO.getLangKey());</span>
+<span class="fc" id="L198">                Set&lt;Authority&gt; managedAuthorities = user.getAuthorities();</span>
+<span class="fc" id="L199">                managedAuthorities.clear();</span>
+<span class="fc" id="L200">                userDTO.getAuthorities().stream()</span>
+<span class="fc" id="L201">                    .map(authorityRepository::findById)</span>
+<span class="fc" id="L202">                    .filter(Optional::isPresent)</span>
+<span class="fc" id="L203">                    .map(Optional::get)</span>
+<span class="fc" id="L204">                    .forEach(managedAuthorities::add);</span>
+<span class="fc" id="L205">                log.debug(&quot;Changed Information for User: {}&quot;, user);</span>
+<span class="fc" id="L206">                return user;</span>
+            })
+<span class="fc" id="L208">            .map(UserDTO::new);</span>
+    }
+
+    public void deleteUser(String login) {
+<span class="fc" id="L212">        userRepository.findOneByLogin(login).ifPresent(user -&gt; {</span>
+<span class="fc" id="L213">            userRepository.delete(user);</span>
+<span class="fc" id="L214">            log.debug(&quot;Deleted User: {}&quot;, user);</span>
+<span class="fc" id="L215">        });</span>
+<span class="fc" id="L216">    }</span>
+
+    public void changePassword(String currentClearTextPassword, String newPassword) {
+<span class="fc" id="L219">        SecurityUtils.getCurrentUserLogin()</span>
+<span class="fc" id="L220">            .flatMap(userRepository::findOneByLogin)</span>
+<span class="fc" id="L221">            .ifPresent(user -&gt; {</span>
+<span class="fc" id="L222">                String currentEncryptedPassword = user.getPassword();</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">                if (!passwordEncoder.matches(currentClearTextPassword, currentEncryptedPassword)) {</span>
+<span class="fc" id="L224">                    throw new InvalidPasswordException();</span>
+                }
+<span class="fc" id="L226">                String encryptedPassword = passwordEncoder.encode(newPassword);</span>
+<span class="fc" id="L227">                user.setPassword(encryptedPassword);</span>
+<span class="fc" id="L228">                log.debug(&quot;Changed password for User: {}&quot;, user);</span>
+<span class="fc" id="L229">            });</span>
+<span class="fc" id="L230">    }</span>
+
+    @Transactional(readOnly = true)
+    public Page&lt;UserDTO&gt; getAllManagedUsers(Pageable pageable) {
+<span class="fc" id="L234">        return userRepository.findAllByLoginNot(pageable, Constants.ANONYMOUS_USER).map(UserDTO::new);</span>
+    }
+
+    @Transactional(readOnly = true)
+    public Optional&lt;User&gt; getUserWithAuthoritiesByLogin(String login) {
+<span class="fc" id="L239">        return userRepository.findOneWithAuthoritiesByLogin(login);</span>
+    }
+
+    @Transactional(readOnly = true)
+    public Optional&lt;User&gt; getUserWithAuthorities(Long id) {
+<span class="nc" id="L244">        return userRepository.findOneWithAuthoritiesById(id);</span>
+    }
+
+    @Transactional(readOnly = true)
+    public Optional&lt;User&gt; getUserWithAuthorities() {
+<span class="nc" id="L249">        return SecurityUtils.getCurrentUserLogin().flatMap(userRepository::findOneWithAuthoritiesByLogin);</span>
+    }
+
+    /**
+     * Not activated users should be automatically deleted after 3 days.
+     * &lt;p&gt;
+     * This is scheduled to get fired everyday, at 01:00 (am).
+     */
+    @Scheduled(cron = &quot;0 0 1 * * ?&quot;)
+    public void removeNotActivatedUsers() {
+<span class="fc" id="L259">        userRepository</span>
+<span class="fc" id="L260">            .findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(Instant.now().minus(3, ChronoUnit.DAYS))</span>
+<span class="fc" id="L261">            .forEach(user -&gt; {</span>
+<span class="fc" id="L262">                log.debug(&quot;Deleting not activated user {}&quot;, user.getLogin());</span>
+<span class="fc" id="L263">                userRepository.delete(user);</span>
+<span class="fc" id="L264">            });</span>
+<span class="fc" id="L265">    }</span>
+
+    /**
+     * Gets a list of all the authorities.
+     * @return a list of all the authorities.
+     */
+    public List&lt;String&gt; getAuthorities() {
+<span class="fc" id="L272">        return authorityRepository.findAll().stream().map(Authority::getName).collect(Collectors.toList());</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.4.201905082037</span></div></body></html>

@@ -1,0 +1,34 @@
+{
+  "generator-jhipster": {
+    "promptValues": {
+      "packageName": "com.hacktothemoon"
+    },
+    "jhipsterVersion": "6.2.0",
+    "applicationType": "monolith",
+    "baseName": "hacktothemoon",
+    "packageName": "com.hacktothemoon",
+    "packageFolder": "com/hacktothemoon",
+    "serverPort": "8080",
+    "authenticationType": "jwt",
+    "cacheProvider": "no",
+    "websocket": false,
+    "databaseType": "sql",
+    "devDatabaseType": "mysql",
+    "prodDatabaseType": "mysql",
+    "searchEngine": false,
+    "messageBroker": false,
+    "serviceDiscoveryType": false,
+    "buildTool": "maven",
+    "enableSwaggerCodegen": false,
+    "jwtSecretKey": "ZDAxMzNiODlkZDUyZTIwOGE4Y2VmYTBlYmFmZTQ3NGEyYmEzNjhmNTI1ZTQ4ZGY5ZmZkMmJhZGYwNWYyODcwODBlMzNiMmU0MjY1ZTlkODdiNWNhNDFhNWFiNmVhZTgzYjRkOTY5ZmIyNmFhNDY0ZWZhZWQ4MjljODAxZDRiMmY=",
+    "testFrameworks": [],
+    "jhiPrefix": "jhi",
+    "entitySuffix": "",
+    "dtoSuffix": "DTO",
+    "otherModules": [],
+    "enableTranslation": false,
+    "clientPackageManager": "npm",
+    "blueprints": [],
+    "skipClient": true
+  }
+}

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.hacktothemoon.service.UserServiceIT
+-------------------------------------------------------------------------------
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.509 s - in com.hacktothemoon.service.UserServiceIT
