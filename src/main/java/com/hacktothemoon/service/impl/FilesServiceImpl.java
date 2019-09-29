@@ -1,12 +1,15 @@
 package com.hacktothemoon.service.impl;
 
+import com.hacktothemoon.domain.StorageNode;
 import com.hacktothemoon.repository.PeersRepository;
+import com.hacktothemoon.repository.StorageNodeRepository;
 import com.hacktothemoon.service.FilesService;
 import com.hacktothemoon.domain.Files;
 import com.hacktothemoon.repository.FilesRepository;
 import com.hacktothemoon.service.dto.FilesDTO;
 import com.hacktothemoon.service.dto.PeersDTO;
 import com.hacktothemoon.service.mapper.FilesMapper;
+import com.hacktothemoon.web.rest.FilesResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,9 +18,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Service Implementation for managing {@link Files}.
@@ -32,14 +38,18 @@ public class FilesServiceImpl implements FilesService {
 
     private final PeersServiceImpl peersServiceImpl;
 
+    private final StorageNodeRepository storageNodeRepository;
+
     private final FilesMapper filesMapper;
 
     public FilesServiceImpl(FilesRepository filesRepository,
                             FilesMapper filesMapper,
-                            PeersServiceImpl peersServiceImpl) {
+                            PeersServiceImpl peersServiceImpl,
+                            StorageNodeRepository storageNodeRepository) {
         this.filesRepository = filesRepository;
         this.filesMapper = filesMapper;
         this.peersServiceImpl = peersServiceImpl;
+        this.storageNodeRepository = storageNodeRepository;
     }
 
     /**
@@ -55,17 +65,16 @@ public class FilesServiceImpl implements FilesService {
         files = filesRepository.save(files);
 
         String file = filesDTO.getFile();
-        String[] splitedFile = splitToNChar(file, 32);
-
-        String node = getRandomNode();
-
+        String[] splitedFile = splitToNChar(file, 999);
 
         int i = 0;
         for (String splitted : splitedFile) {
             i++;
+            String node = getRandomNode();
+            String name = saveToNode(node, splitted);
             PeersDTO peer = new PeersDTO();
             peer.setQuantity(i);
-            peer.setUrl(getRandomPeer(splitted));
+            peer.setUrl(node+"/"+name);
             peer.setFilesId(files.getId());
             peersServiceImpl.save(peer);
         }
@@ -73,9 +82,26 @@ public class FilesServiceImpl implements FilesService {
         return filesMapper.toDto(files);
     }
 
-    private String getRandomNode() {
+    private String saveToNode(String node, String splitted) {
 
-        return "node1";
+        String name = "";
+        try {
+            name = UUID.randomUUID().toString();
+            BufferedWriter writer = new BufferedWriter(
+                new FileWriter(FilesResource.uploadDirectory + "/" + node + "/" + name)
+            );
+            writer.write(splitted);
+            writer.close();
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
+
+        return name;
+    }
+
+    private String getRandomNode() {
+        StorageNode node = storageNodeRepository.findRandomNode();
+        return node.getNode();
     }
 
     /**
@@ -122,10 +148,15 @@ public class FilesServiceImpl implements FilesService {
      */
     @Override
     @Transactional(readOnly = true)
-    public Optional<FilesDTO> findOne(Long id) {
+    public FilesDTO findOne(Long id) {
         log.debug("Request to get Files : {}", id);
-        return filesRepository.findById(id)
-            .map(filesMapper::toDto);
+
+        String base64 = peersServiceImpl.findByFileId(id);
+
+        FilesDTO file = filesRepository.findById(id).map(filesMapper::toDto).get();
+        file.setFile(base64);
+
+        return file;
     }
 
     /**

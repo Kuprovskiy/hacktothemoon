@@ -8,6 +8,7 @@ import com.hacktothemoon.web.rest.errors.UnsupportedMediaTypeException;
 import io.github.jhipster.web.util.HeaderUtil;
 import io.github.jhipster.web.util.PaginationUtil;
 import io.github.jhipster.web.util.ResponseUtil;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.validation.Valid;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -27,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,6 +41,8 @@ import java.util.Optional;
 public class FilesResource {
 
     private final Logger log = LoggerFactory.getLogger(FilesResource.class);
+
+    public static String uploadDirectory = "/home/user/apps/hacktothemoon-be/nodes";
 
     private static final String ENTITY_NAME = "files";
 
@@ -71,8 +76,6 @@ public class FilesResource {
             .body(result);
     }
 
-    public static String uploadDirectory = "/home/user/apps/hacktothemoon-be/nodes";
-
     @PostMapping("/upload")
     public ResponseEntity<FilesDTO> uploadPostImage(
         @RequestHeader HttpHeaders headers,
@@ -94,7 +97,7 @@ public class FilesResource {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        path1=fileNameAndPath.toString();
+        path1 = convertToBase64(uploadDirectory + "/" + fileNameAndPath.getFileName());
 
         FilesDTO newFile = new FilesDTO();
         newFile.setFile(path1);
@@ -107,29 +110,6 @@ public class FilesResource {
         return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, null))
             .body(result);
-    }
-
-    private FileType mapFileType(String fileType) {
-
-        switch (fileType.toUpperCase()) {
-            case "JPEG":
-                return FileType.JPEG;
-            case "PNG":
-                return FileType.PNG;
-            case "PDF":
-                return FileType.PDF;
-            case "TXT":
-                return FileType.TXT;
-        }
-
-        return null;
-    }
-
-    private void validateRequest(MultipartFile file, List<String> imageContentTypes) {
-        String fileContentType = file.getContentType();
-        if(!imageContentTypes.contains(fileContentType)) {
-            throw new UnsupportedMediaTypeException();
-        }
     }
 
     /**
@@ -154,10 +134,10 @@ public class FilesResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the filesDTO, or with status {@code 404 (Not Found)}.
      */
     @GetMapping("/files/{id}")
-    public ResponseEntity<FilesDTO> getFiles(@PathVariable Long id) {
+    public FilesDTO getFiles(@PathVariable Long id) {
         log.debug("REST request to get Files : {}", id);
-        Optional<FilesDTO> filesDTO = filesService.findOne(id);
-        return ResponseUtil.wrapOrNotFound(filesDTO);
+        FilesDTO filesDTO = filesService.findOne(id);
+        return filesDTO;
     }
 
     /**
@@ -171,5 +151,39 @@ public class FilesResource {
         log.debug("REST request to delete Files : {}", id);
         filesService.delete(id);
         return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString())).build();
+    }
+
+    private String convertToBase64(String fileNameAndPath) {
+        String encodedString = null;
+        try {
+            byte[] fileContent = FileUtils.readFileToByteArray(new File(fileNameAndPath));
+            encodedString = Base64.getEncoder().encodeToString(fileContent);
+        } catch (IOException e) {
+            log.debug("qqq");
+        }
+        return encodedString;
+    }
+
+    private FileType mapFileType(String fileType) {
+
+        switch (fileType.toUpperCase()) {
+            case "JPEG":
+                return FileType.JPEG;
+            case "PNG":
+                return FileType.PNG;
+            case "PDF":
+                return FileType.PDF;
+            case "TXT":
+                return FileType.TXT;
+        }
+
+        return null;
+    }
+
+    private void validateRequest(MultipartFile file, List<String> imageContentTypes) {
+        String fileContentType = file.getContentType();
+        if(!imageContentTypes.contains(fileContentType)) {
+            throw new UnsupportedMediaTypeException();
+        }
     }
 }

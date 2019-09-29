@@ -36,7 +36,7 @@ public interface FilesService {
      * @param id the id of the entity.
      * @return the entity.
      */
-    Optional<FilesDTO> findOne(Long id);
+    FilesDTO findOne(Long id);
 
     /**
      * Delete the "id" files.
