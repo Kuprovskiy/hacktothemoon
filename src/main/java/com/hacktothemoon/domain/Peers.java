@@ -23,6 +23,10 @@ public class Peers implements Serializable {
     private String url;
 
     @NotNull
+    @Column(name = "reserved_url", nullable = false)
+    private String reserved;
+
+    @NotNull
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
@@ -78,6 +82,15 @@ public class Peers implements Serializable {
         this.files = files;
     }
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here, do not remove
+
+
+    public String getReserved() {
+        return reserved;
+    }
+
+    public void setReserved(String reserved) {
+        this.reserved = reserved;
+    }
 
     @Override
     public boolean equals(Object o) {

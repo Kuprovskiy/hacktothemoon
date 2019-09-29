@@ -98,6 +98,10 @@ spring:
         size: 2
   thymeleaf:
     mode: HTML
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
 
 server:
   servlet:

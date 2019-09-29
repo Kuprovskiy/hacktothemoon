@@ -19,6 +19,9 @@
             <column name="url" type="text">
                 <constraints nullable="false" />
             </column>
+            <column name="reserved_url" type="text">
+                <constraints nullable="false" />
+            </column>
 
             <column name="quantity" type="integer">
                 <constraints nullable="false" />

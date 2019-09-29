@@ -13,6 +13,8 @@ public class PeersDTO implements Serializable {
     @NotNull
     private String url;
 
+    private String reserved;
+
     @NotNull
     private Integer quantity;
 
@@ -49,6 +51,14 @@ public class PeersDTO implements Serializable {
 
     public void setFilesId(Long filesId) {
         this.filesId = filesId;
+    }
+
+    public String getReserved() {
+        return reserved;
+    }
+
+    public void setReserved(String reserved) {
+        this.reserved = reserved;
     }
 
     @Override

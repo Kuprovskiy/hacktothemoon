@@ -128,7 +128,8 @@ public class PeersServiceImpl implements PeersService {
         catch (IOException e) {
             e.printStackTrace();
         }
-
+        log.info("------------------------------------");
+        log.info(contentBuilder.toString());
         return contentBuilder.toString();
     }
 

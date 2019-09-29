@@ -59,22 +59,32 @@ public class FilesServiceImpl implements FilesService {
      * @return the persisted entity.
      */
     @Override
+    @Transactional
     public FilesDTO save(FilesDTO filesDTO) {
         log.debug("Request to save Files : {}", filesDTO);
+
+        String file = filesDTO.getFile();
+        filesDTO.setFile("debug");
+
         Files files = filesMapper.toEntity(filesDTO);
         files = filesRepository.save(files);
 
-        String file = filesDTO.getFile();
+
         String[] splitedFile = splitToNChar(file, 999);
 
         int i = 0;
         for (String splitted : splitedFile) {
             i++;
             String node = getRandomNode();
-            String name = saveToNode(node, splitted);
+            String reservedNode = getRandomNode();
+            String splittedFileName = UUID.randomUUID().toString();
+            // TODO validate for free space
+            String name = saveToNode(node, splitted, splittedFileName);
+            String reserved = saveToNode(reservedNode, splitted, splittedFileName);
             PeersDTO peer = new PeersDTO();
             peer.setQuantity(i);
             peer.setUrl(node+"/"+name);
+            peer.setReserved(reserved);
             peer.setFilesId(files.getId());
             peersServiceImpl.save(peer);
         }
@@ -82,11 +92,9 @@ public class FilesServiceImpl implements FilesService {
         return filesMapper.toDto(files);
     }
 
-    private String saveToNode(String node, String splitted) {
+    private String saveToNode(String node, String splitted, String name) {
 
-        String name = "";
         try {
-            name = UUID.randomUUID().toString();
             BufferedWriter writer = new BufferedWriter(
                 new FileWriter(FilesResource.uploadDirectory + "/" + node + "/" + name)
             );
