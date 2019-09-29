@@ -1,9 +1,10 @@
 package com.hacktothemoon.web.rest;
 
+import com.hacktothemoon.domain.enumeration.FileType;
 import com.hacktothemoon.service.FilesService;
-import com.hacktothemoon.web.rest.errors.BadRequestAlertException;
 import com.hacktothemoon.service.dto.FilesDTO;
-
+import com.hacktothemoon.web.rest.errors.BadRequestAlertException;
+import com.hacktothemoon.web.rest.errors.UnsupportedMediaTypeException;
 import io.github.jhipster.web.util.HeaderUtil;
 import io.github.jhipster.web.util.PaginationUtil;
 import io.github.jhipster.web.util.ResponseUtil;
@@ -13,15 +14,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.validation.Valid;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +50,8 @@ public class FilesResource {
         this.filesService = filesService;
     }
 
+    private static final List<String> imageContentTypes = Arrays.asList("image/png", "image/jpeg");
+
     /**
      * {@code POST  /files} : Create a new files.
      *
@@ -64,39 +71,78 @@ public class FilesResource {
             .body(result);
     }
 
-    /**
-     * {@code PUT  /files} : Updates an existing files.
-     *
-     * @param filesDTO the filesDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated filesDTO,
-     * or with status {@code 400 (Bad Request)} if the filesDTO is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the filesDTO couldn't be updated.
-     * @throws URISyntaxException if the Location URI syntax is incorrect.
-     */
-    @PutMapping("/files")
-    public ResponseEntity<FilesDTO> updateFiles(@Valid @RequestBody FilesDTO filesDTO) throws URISyntaxException {
-        log.debug("REST request to update Files : {}", filesDTO);
-        if (filesDTO.getId() == null) {
-            throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
+    public static String uploadDirectory = "/home/user/apps/hacktothemoon-be/nodes";
+
+    @PostMapping("/upload")
+    public ResponseEntity<FilesDTO> uploadPostImage(
+        @RequestHeader HttpHeaders headers,
+        @RequestParam("file") MultipartFile files,
+        @RequestParam("uuid") String uuid,
+        @RequestParam("fileType") String fileType,
+        @RequestParam("name") String name
+    ) {
+        log.debug("REST request to save Files : {}", files);
+        log.debug("headers : {}", headers);
+        log.debug("uuid : {}", uuid);
+
+        validateRequest(files, imageContentTypes);
+
+        String path1 = "";
+        Path fileNameAndPath = Paths.get(uploadDirectory, files.getOriginalFilename());
+        try {
+            Files.write(fileNameAndPath, files.getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        FilesDTO result = filesService.save(filesDTO);
+        path1=fileNameAndPath.toString();
+
+        FilesDTO newFile = new FilesDTO();
+        newFile.setFile(path1);
+        newFile.setName(name);
+        newFile.setUuid(uuid);
+        newFile.setFileType(mapFileType(fileType));
+
+        FilesDTO result = filesService.save(newFile);
+
         return ResponseEntity.ok()
-            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, filesDTO.getId().toString()))
+            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, null))
             .body(result);
+    }
+
+    private FileType mapFileType(String fileType) {
+
+        switch (fileType.toUpperCase()) {
+            case "JPEG":
+                return FileType.JPEG;
+            case "PNG":
+                return FileType.PNG;
+            case "PDF":
+                return FileType.PDF;
+            case "TXT":
+                return FileType.TXT;
+        }
+
+        return null;
+    }
+
+    private void validateRequest(MultipartFile file, List<String> imageContentTypes) {
+        String fileContentType = file.getContentType();
+        if(!imageContentTypes.contains(fileContentType)) {
+            throw new UnsupportedMediaTypeException();
+        }
     }
 
     /**
      * {@code GET  /files} : get all the files.
      *
-
      * @param pageable the pagination information.
-
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of files in body.
      */
     @GetMapping("/files")
-    public ResponseEntity<List<FilesDTO>> getAllFiles(Pageable pageable) {
+    public ResponseEntity<List<FilesDTO>> getAllFiles(Pageable pageable,
+                                                      @RequestParam(value = "uuid") String uuid) {
         log.debug("REST request to get a page of Files");
-        Page<FilesDTO> page = filesService.findAll(pageable);
+        Page<FilesDTO> page = filesService.findByUuid(pageable, uuid);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }

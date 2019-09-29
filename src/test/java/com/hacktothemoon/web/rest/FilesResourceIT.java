@@ -133,29 +133,6 @@ public class FilesResourceIT {
 
     @Test
     @Transactional
-    public void createFiles() throws Exception {
-        int databaseSizeBeforeCreate = filesRepository.findAll().size();
-
-        // Create the Files
-        FilesDTO filesDTO = filesMapper.toDto(files);
-        restFilesMockMvc.perform(post("/api/files")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .content(TestUtil.convertObjectToJsonBytes(filesDTO)))
-            .andExpect(status().isCreated());
-
-        // Validate the Files in the database
-        List<Files> filesList = filesRepository.findAll();
-        assertThat(filesList).hasSize(databaseSizeBeforeCreate + 1);
-        Files testFiles = filesList.get(filesList.size() - 1);
-        assertThat(testFiles.getName()).isEqualTo(DEFAULT_NAME);
-        assertThat(testFiles.getFile()).isEqualTo(DEFAULT_FILE);
-        assertThat(testFiles.getUuid()).isEqualTo(DEFAULT_UUID);
-        assertThat(testFiles.getCreatedAt()).isEqualTo(DEFAULT_CREATED_AT);
-        assertThat(testFiles.getFileType()).isEqualTo(DEFAULT_FILE_TYPE);
-    }
-
-    @Test
-    @Transactional
     public void createFilesWithExistingId() throws Exception {
         int databaseSizeBeforeCreate = filesRepository.findAll().size();
 
@@ -250,24 +227,6 @@ public class FilesResourceIT {
         List<Files> filesList = filesRepository.findAll();
         assertThat(filesList).hasSize(databaseSizeBeforeTest);
     }
-
-    @Test
-    @Transactional
-    public void getAllFiles() throws Exception {
-        // Initialize the database
-        filesRepository.saveAndFlush(files);
-
-        // Get all the filesList
-        restFilesMockMvc.perform(get("/api/files?sort=id,desc"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-            .andExpect(jsonPath("$.[*].id").value(hasItem(files.getId().intValue())))
-            .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME.toString())))
-            .andExpect(jsonPath("$.[*].file").value(hasItem(DEFAULT_FILE.toString())))
-            .andExpect(jsonPath("$.[*].uuid").value(hasItem(DEFAULT_UUID.toString())))
-            .andExpect(jsonPath("$.[*].createdAt").value(hasItem(DEFAULT_CREATED_AT.toString())))
-            .andExpect(jsonPath("$.[*].fileType").value(hasItem(DEFAULT_FILE_TYPE.toString())));
-    }
     
     @Test
     @Transactional
@@ -293,61 +252,6 @@ public class FilesResourceIT {
         // Get the files
         restFilesMockMvc.perform(get("/api/files/{id}", Long.MAX_VALUE))
             .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @Transactional
-    public void updateFiles() throws Exception {
-        // Initialize the database
-        filesRepository.saveAndFlush(files);
-
-        int databaseSizeBeforeUpdate = filesRepository.findAll().size();
-
-        // Update the files
-        Files updatedFiles = filesRepository.findById(files.getId()).get();
-        // Disconnect from session so that the updates on updatedFiles are not directly saved in db
-        em.detach(updatedFiles);
-        updatedFiles
-            .name(UPDATED_NAME)
-            .file(UPDATED_FILE)
-            .uuid(UPDATED_UUID)
-            .createdAt(UPDATED_CREATED_AT)
-            .fileType(UPDATED_FILE_TYPE);
-        FilesDTO filesDTO = filesMapper.toDto(updatedFiles);
-
-        restFilesMockMvc.perform(put("/api/files")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .content(TestUtil.convertObjectToJsonBytes(filesDTO)))
-            .andExpect(status().isOk());
-
-        // Validate the Files in the database
-        List<Files> filesList = filesRepository.findAll();
-        assertThat(filesList).hasSize(databaseSizeBeforeUpdate);
-        Files testFiles = filesList.get(filesList.size() - 1);
-        assertThat(testFiles.getName()).isEqualTo(UPDATED_NAME);
-        assertThat(testFiles.getFile()).isEqualTo(UPDATED_FILE);
-        assertThat(testFiles.getUuid()).isEqualTo(UPDATED_UUID);
-        assertThat(testFiles.getCreatedAt()).isEqualTo(UPDATED_CREATED_AT);
-        assertThat(testFiles.getFileType()).isEqualTo(UPDATED_FILE_TYPE);
-    }
-
-    @Test
-    @Transactional
-    public void updateNonExistingFiles() throws Exception {
-        int databaseSizeBeforeUpdate = filesRepository.findAll().size();
-
-        // Create the Files
-        FilesDTO filesDTO = filesMapper.toDto(files);
-
-        // If the entity doesn't have an ID, it will throw BadRequestAlertException
-        restFilesMockMvc.perform(put("/api/files")
-            .contentType(TestUtil.APPLICATION_JSON_UTF8)
-            .content(TestUtil.convertObjectToJsonBytes(filesDTO)))
-            .andExpect(status().isBadRequest());
-
-        // Validate the Files in the database
-        List<Files> filesList = filesRepository.findAll();
-        assertThat(filesList).hasSize(databaseSizeBeforeUpdate);
     }
 
     @Test

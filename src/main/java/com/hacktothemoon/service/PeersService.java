@@ -1,5 +1,6 @@
 package com.hacktothemoon.service;
 
+import com.hacktothemoon.domain.Files;
 import com.hacktothemoon.service.dto.PeersDTO;
 
 import org.springframework.data.domain.Page;
@@ -26,7 +27,7 @@ public interface PeersService {
      * @param pageable the pagination information.
      * @return the list of entities.
      */
-    Page<PeersDTO> findAll(Pageable pageable);
+    Page<PeersDTO> findAll(Pageable pageable, Long file);
 
 
     /**

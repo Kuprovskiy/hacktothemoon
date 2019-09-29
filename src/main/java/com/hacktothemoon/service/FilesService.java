@@ -24,9 +24,10 @@ public interface FilesService {
      * Get all the files.
      *
      * @param pageable the pagination information.
+     * @param uuid user id
      * @return the list of entities.
      */
-    Page<FilesDTO> findAll(Pageable pageable);
+    Page<FilesDTO> findByUuid(Pageable pageable, String uuid);
 
 
     /**

@@ -1,5 +1,7 @@
 package com.hacktothemoon.service.impl;
 
+import com.hacktothemoon.domain.Files;
+import com.hacktothemoon.repository.FilesRepository;
 import com.hacktothemoon.service.PeersService;
 import com.hacktothemoon.domain.Peers;
 import com.hacktothemoon.repository.PeersRepository;
@@ -26,11 +28,16 @@ public class PeersServiceImpl implements PeersService {
 
     private final PeersRepository peersRepository;
 
+    private final FilesRepository filesRepository;
+
     private final PeersMapper peersMapper;
 
-    public PeersServiceImpl(PeersRepository peersRepository, PeersMapper peersMapper) {
+    public PeersServiceImpl(PeersRepository peersRepository,
+                            PeersMapper peersMapper,
+                            FilesRepository filesRepository) {
         this.peersRepository = peersRepository;
         this.peersMapper = peersMapper;
+        this.filesRepository = filesRepository;
     }
 
     /**
@@ -55,9 +62,12 @@ public class PeersServiceImpl implements PeersService {
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<PeersDTO> findAll(Pageable pageable) {
+    public Page<PeersDTO> findAll(Pageable pageable, Long id) {
         log.debug("Request to get all Peers");
-        return peersRepository.findAll(pageable)
+
+        Files file = filesRepository.getOne(id);
+
+        return peersRepository.findByFiles(pageable, file)
             .map(peersMapper::toDto);
     }
 

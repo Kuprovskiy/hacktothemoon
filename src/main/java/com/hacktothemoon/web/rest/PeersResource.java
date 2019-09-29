@@ -88,15 +88,13 @@ public class PeersResource {
     /**
      * {@code GET  /peers} : get all the peers.
      *
-
      * @param pageable the pagination information.
-
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of peers in body.
      */
-    @GetMapping("/peers")
-    public ResponseEntity<List<PeersDTO>> getAllPeers(Pageable pageable) {
+    @GetMapping("/files/{id}/peers")
+    public ResponseEntity<List<PeersDTO>> getAllPeers(Pageable pageable, @PathVariable Long id) {
         log.debug("REST request to get a page of Peers");
-        Page<PeersDTO> page = peersService.findAll(pageable);
+        Page<PeersDTO> page = peersService.findAll(pageable, id);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
